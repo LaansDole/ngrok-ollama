@@ -33,11 +33,6 @@ This setup is based on the best practices found in the official `ngrok` document
     *   Copy the example environment file: `cp .env.example .env`
     *   Edit the `.env` file and replace `YOUR_RESERVED_DOMAIN.ngrok.app` with the domain you reserved in the previous step.
 
-5.  **Run the server:**
-    ```bash
-    make run
-    ```
-
 ## Usage
 
 1.  **Start your Ollama Server:**
