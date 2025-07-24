@@ -15,13 +15,14 @@ This setup is based on the best practices found in the official `ngrok` document
 
 1.  **Clone the repository:**
     ```bash
-    git clone <repository-url>
+    git clone https://github.com/LaansDole/ngrok-ollama.git
     cd remote-ollama
     ```
 
 2.  **Configure your ngrok Authtoken:**
     You must authenticate the `ngrok` agent. Get your authtoken from the [ngrok dashboard](https://dashboard.ngrok.com/get-started/your-authtoken) and run the following command in your terminal, replacing `YOUR_NGROK_TOKEN` with your actual token:
     ```bash
+    make setup # To see the documentation for setting up ngrok
     ngrok config add-authtoken YOUR_NGROK_TOKEN
     ```
 
@@ -31,6 +32,11 @@ This setup is based on the best practices found in the official `ngrok` document
 4.  **Configure Environment Variables:**
     *   Copy the example environment file: `cp .env.example .env`
     *   Edit the `.env` file and replace `YOUR_RESERVED_DOMAIN.ngrok.app` with the domain you reserved in the previous step.
+
+5.  **Run the server:**
+    ```bash
+    make run
+    ```
 
 ## Usage
 
