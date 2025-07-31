@@ -1,6 +1,63 @@
 # Remote Ollama with ngrok
 
-This project provides a simple and robust configuration to expose your local Ollama server to the internet using the `ngrok` agent. It uses a `Makefile` and a traffic policy file to ensure a stable and correctly configured tunnel.
+This project provides a simple and robust configuration to expose your local Ollama server to the internet using the `ngrok` agent. It includes a Streamlit-based chat UI with Temporal workflow orchestration for enhanced reliability and scalability.
+
+## Architecture
+
+```mermaid
+graph TB
+    subgraph "Host Machine"
+        Ollama[Ollama Server<br/>:11434]
+        ngrok[ngrok Tunnel<br/>Public URL]
+        Browser[Web Browser<br/>:8501]
+    end
+    
+    subgraph "Docker Environment"
+        subgraph "temporal-streamlit-net"
+            Temporal[Temporal Server<br/>:7233<br/>SQLite DB]
+            UI[Streamlit UI<br/>:8501]
+            Worker[Temporal Worker<br/>Background Process]
+        end
+    end
+    
+    subgraph "External"
+        Internet[Internet Users]
+    end
+    
+    %% Connections
+    Browser -.-> UI
+    UI <--> Temporal
+    Worker <--> Temporal
+    UI -.-> Ollama
+    Worker -.-> Ollama
+    Ollama <--> ngrok
+    Internet <--> ngrok
+    
+    %% Styling
+    classDef hostComponent fill:#e1f5fe
+    classDef dockerComponent fill:#f3e5f5
+    classDef externalComponent fill:#fff3e0
+    
+    class Ollama,ngrok,Browser hostComponent
+    class Temporal,UI,Worker dockerComponent
+    class Internet externalComponent
+```
+
+### Component Overview
+
+- **Ollama Server**: Local LLM server (external to Docker, accessible via ngrok)
+- **Temporal Server**: Workflow orchestration with SQLite persistence (Docker)
+- **Streamlit UI**: Web-based chat interface (Docker)
+- **Temporal Worker**: Background workflow execution (Docker)
+- **ngrok Tunnel**: Secure public access to local Ollama instance
+
+### Data Flow
+
+1. Users access the Streamlit UI via web browser
+2. UI submits chat requests through Temporal workflows
+3. Worker processes workflows and communicates with Ollama
+4. External users can access Ollama directly via ngrok tunnel
+5. All Docker services communicate via `temporal-streamlit-net` network
 
 This setup is based on the best practices found in the official `ngrok` documentation and community guides.
 
@@ -36,29 +93,25 @@ This setup is based on the best practices found in the official `ngrok` document
 
 ## Usage
 
-### Running the UI with Docker Compose
+### Running with Docker Compose (Recommended)
 
-This method is recommended if you are already running the Ollama and Temporal servers on your local machine.
+This method runs the Streamlit UI, Temporal worker, and Temporal server in Docker containers. **Note: You need to have Ollama running separately on your host machine.**
 
-1.  **Start the UI and Worker:**
+1.  **Start Ollama on your host machine:**
+    ```bash
+    OLLAMA_HOST=0.0.0.0 ollama serve
+    ```
+
+2.  **Start the UI, Worker, and Temporal Server:**
     ```bash
     docker-compose -f docker-compose.ui.yml up --build
     ```
-    This will build the Docker image for the UI and worker, and then start both services. The UI will be available at `http://localhost:8501`.
-
-### Running the Full Stack with Docker Compose
-
-This is the easiest way to run the entire application stack, including Ollama and Temporal.
-
-1.  **Start the application:**
-    ```bash
-    docker-compose up --build
-    ```
-    This will build the Docker image for the UI and worker, and then start all the services. You can access the Streamlit UI at `http://localhost:8501`.
+    
+    The UI will be available at `http://localhost:8501`.
 
 ### Running Manually
 
-If you prefer to run the services manually, you can follow these steps:
+If you prefer to run the services manually without Docker, you can follow these steps:
 
 1.  **Start your Ollama Server:**
     For `ngrok` to access your Ollama instance, you must start it so that it listens on all network interfaces. Open a new terminal and run:
@@ -73,20 +126,30 @@ If you prefer to run the services manually, you can follow these steps:
     ```
     This command will read your `.env` file and start the `ngrok` tunnel using the traffic policy defined in `ollama.yaml`. You will see the public URL in your terminal.
 
-3.  **Run the Ollama Chat UI:**
+3.  **Set up and Run the Ollama Chat UI:**
     You will need to run the Temporal worker and the Streamlit UI in separate terminals.
 
-    *   **Terminal 1: Start the Temporal Worker**
+    *   **Terminal 1: Install Dependencies**
+        ```bash
+        make ui-install
+        ```
+
+    *   **Terminal 2: Start the Temporal Worker**
         ```bash
         make ui-worker
         ```
 
-    *   **Terminal 2: Start the Streamlit UI**
+    *   **Terminal 3: Start the Streamlit UI**
         ```bash
         make ui-run
         ```
 
     Now you can access the chat UI in your browser at the address provided by Streamlit (usually `http://localhost:8501`).
+
+    **Note:** For manual setup, you'll also need to run a Temporal server separately. You can use Docker for this:
+    ```bash
+    docker run --rm -p 7233:7233 temporalio/auto-setup:1.10.0
+    ```
 
 ## Troubleshooting
 
