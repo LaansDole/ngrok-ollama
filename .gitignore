@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Serena MCP
+.serena
+
 # Distribution / packaging
 .Python
 build/

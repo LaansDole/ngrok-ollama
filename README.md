@@ -10,6 +10,7 @@ This setup is based on the best practices found in the official `ngrok` document
 *   An [ngrok account](https://dashboard.ngrok.com/signup) (a free account is sufficient).
 *   The `ngrok` agent installed on your system. You can find installation instructions [here](https://ngrok.com/docs/getting-started/#2-install-the-ngrok-agent-cli).
 *   `make` (usually pre-installed on macOS and Linux).
+*   [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/).
 
 ## Setup
 
@@ -35,6 +36,30 @@ This setup is based on the best practices found in the official `ngrok` document
 
 ## Usage
 
+### Running the UI with Docker Compose
+
+This method is recommended if you are already running the Ollama and Temporal servers on your local machine.
+
+1.  **Start the UI and Worker:**
+    ```bash
+    docker-compose -f docker-compose.ui.yml up --build
+    ```
+    This will build the Docker image for the UI and worker, and then start both services. The UI will be available at `http://localhost:8501`.
+
+### Running the Full Stack with Docker Compose
+
+This is the easiest way to run the entire application stack, including Ollama and Temporal.
+
+1.  **Start the application:**
+    ```bash
+    docker-compose up --build
+    ```
+    This will build the Docker image for the UI and worker, and then start all the services. You can access the Streamlit UI at `http://localhost:8501`.
+
+### Running Manually
+
+If you prefer to run the services manually, you can follow these steps:
+
 1.  **Start your Ollama Server:**
     For `ngrok` to access your Ollama instance, you must start it so that it listens on all network interfaces. Open a new terminal and run:
     ```bash
@@ -47,6 +72,21 @@ This setup is based on the best practices found in the official `ngrok` document
     make run
     ```
     This command will read your `.env` file and start the `ngrok` tunnel using the traffic policy defined in `ollama.yaml`. You will see the public URL in your terminal.
+
+3.  **Run the Ollama Chat UI:**
+    You will need to run the Temporal worker and the Streamlit UI in separate terminals.
+
+    *   **Terminal 1: Start the Temporal Worker**
+        ```bash
+        make ui-worker
+        ```
+
+    *   **Terminal 2: Start the Streamlit UI**
+        ```bash
+        make ui-run
+        ```
+
+    Now you can access the chat UI in your browser at the address provided by Streamlit (usually `http://localhost:8501`).
 
 ## Troubleshooting
 
@@ -67,105 +107,11 @@ Here are some common errors and their solutions:
 *   **Symptom:** The `ngrok` tunnel is running, but you get errors when trying to access your Ollama server through the public URL.
 *   **Solution:** Ensure you have started the Ollama server as described in step 1 of the **Usage** section, with the `OLLAMA_HOST` environment variable set to `0.0.0.0`.
 
-## Alternative Setup Methods
+## Performance Considerations
 
-### Using Homebrew for Ollama (macOS)
+**⚠️ Latency Impact**: ngrok introduces approximately **50-100ms additional latency** to API calls. This is acceptable for development and demonstration purposes but may impact user experience in production environments.
 
-If you are on macOS, you can install and manage Ollama as a system service using [Homebrew](https://brew.sh/).
-
-1.  **Install Ollama:**
-    ```bash
-    brew install ollama
-    ```
-
-2.  **Start/Restart the Ollama Service:**
-    This command will start the Ollama service in the background and ensure it restarts on login.
-    ```bash
-    brew services restart ollama
-    ```
-    With this setup, you may need to configure the `OLLAMA_HOST` environment variable for the service itself if you want it to be accessible from the ngrok tunnel.
-
-### Using `pyngrok`
-
-For those who prefer a Python-based approach, you can use the `pyngrok` library to manage the tunnel programmatically.
-
-1.  **Installation**
-    Install the required Python library:
-    ```bash
-    pip install pyngrok
-    ```
-
-2.  **Create the Script**
-    Create a Python file (e.g., `expose_ollama.py`) with the following content:
-
-    ```python
-    import os
-    import logging
-    from pyngrok import ngrok
-
-    # The default port for Ollama
-    OLLAMA_PORT = 11434
-
-    def setup_logging():
-        """Sets up logging based on the LOG_LEVEL environment variable."""
-        log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
-        logging.basicConfig(level=log_level, format="%(asctime)s - %(levelname)s - %(message)s")
-
-    def expose_ollama():
-        """
-        Exposes the local Ollama server to the public using pyngrok.
-        """
-        setup_logging()
-
-        try:
-            # Check if OLLAMA_HOST is set correctly
-            ollama_host = os.environ.get("OLLAMA_HOST", "").lower()
-            if ollama_host not in ["0.0.0.0", "::"]:
-                logging.warning("OLLAMA_HOST environment variable is not set to '0.0.0.0' or '::'.")
-                logging.warning("The Ollama server may not be accessible from the ngrok tunnel.")
-                logging.warning("Start Ollama with 'OLLAMA_HOST=0.0.0.0 ollama serve' for remote access.")
-
-            # Get the ngrok authtoken from the environment variable
-            auth_token = os.environ.get("NGROK_AUTHTOKEN")
-            if auth_token:
-                ngrok.set_auth_token(auth_token)
-            else:
-                logging.error("NGROK_AUTHTOKEN environment variable not set.")
-                logging.error("Please set it to your ngrok authtoken.")
-                logging.error("You can get your authtoken from https://dashboard.ngrok.com/get-started/your-authtoken")
-                return
-
-            # Open a HTTP tunnel to the Ollama port
-            public_url = ngrok.connect(OLLAMA_PORT, "http")
-            logging.info(f"Ollama is now exposed to the public at: {public_url}")
-            logging.info("Press Ctrl+C to quit.")
-
-            ngrok_process = ngrok.get_ngrok_process()
-            try:
-                # Block until CTRL-C or some other terminating event
-                ngrok_process.proc.wait()
-            except KeyboardInterrupt:
-                logging.info("Shutting down ngrok tunnel.")
-                ngrok.kill()
-
-        except Exception as e:
-            logging.error(f"An error occurred: {e}")
-            # Ensure ngrok processes are killed on error
-            ngrok.kill()
-
-    if __name__ == "__main__":
-        expose_ollama()
-    ```
-
-3.  **Configuration and Usage**
-    *   **Set Environment Variables:** This script requires the `NGROK_AUTHTOKEN` to be set as an environment variable.
-        ```bash
-        export NGROK_AUTHTOKEN="YOUR_NGROK_AUTHTOKEN"
-        ```
-    *   **Run the script:**
-        ```bash
-        python expose_ollama.py
-        ```
+📊 **Performance Guide**: See [ngrok Latency Guide](docs/ngrok-latency-guide.md) for benchmarks, optimization tips, and alternative recommendations.
 
 ## References
 
@@ -174,3 +120,4 @@ This project was built using information from the following resources:
 *   **ngrok Documentation:** [Expose and Secure Your Self-Hosted Ollama API](https://ngrok.com/docs/universal-gateway/examples/ollama/)
 *   **thoughtbot Blog:** [How to use ngrok and Ollama to access a local LLM remotely](https://thoughtbot.com/blog/ngrok-and-ollama)
 *   **Ollama on Homebrew:** [formulae.brew.sh/formula/ollama](https://formulae.brew.sh/formula/ollama)
+*   **Performance Analysis:** [ngrok Latency Guide](docs/ngrok-latency-guide.md)
