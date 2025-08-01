@@ -1,11 +1,10 @@
 
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import List
 import os
 from dotenv import load_dotenv
 from temporalio import activity, workflow
-import requests
-import json
 
 # Load environment variables from .env file
 load_dotenv()
@@ -15,11 +14,15 @@ OLLAMA_API_URL = os.getenv("OLLAMA_API_URL", "http://localhost:11434/api/chat")
 @dataclass
 class OllamaInput:
     model: str
-    messages: list
+    messages: List[dict]
 
 @activity.defn
 async def get_ollama_response(input: OllamaInput) -> str:
     """Activity to get a response from the Ollama API."""
+    # Import requests inside the activity (not in the workflow sandbox)
+    import requests
+    import json
+    
     full_response = ""
     try:
         data = {
@@ -41,7 +44,7 @@ async def get_ollama_response(input: OllamaInput) -> str:
 @workflow.defn
 class OllamaWorkflow:
     @workflow.run
-    async def run(self, model: str, messages: list) -> str:
+    async def run(self, model: str, messages: List[dict]) -> str:
         return await workflow.execute_activity(
             get_ollama_response,
             OllamaInput(model=model, messages=messages),

@@ -1,13 +1,18 @@
-.PHONY: setup run test-latency help ui-install ui-run ui-worker
+.PHONY: setup expose test-latency help ui-install ui-run ui-worker run-worker run-temporal stop-temporal ui-compose debug-worker run-worker-local
 
 help:
 	@echo "Available commands:"
 	@echo "  setup        - Display ngrok setup instructions"
-	@echo "  run          - Start the ngrok tunnel for Ollama"
+	@echo "  run          - Start the ngrok tunnel for Ollama (default port 11434)"
+	@echo "                 Usage: make run [PORT=<port>]"
 	@echo "  test-latency - Test latency performance of the tunnel"
 	@echo "  ui-install   - Install UI dependencies"
 	@echo "  ui-run       - Run the Streamlit UI"
 	@echo "  ui-worker    - Run the Temporal worker"
+	@echo "  run-temporal - Start Temporal server with docker-compose"
+	@echo "  stop-temporal - Stop Temporal server docker-compose services"
+	@echo "  debug-worker - Run the worker with debug output"
+	@echo "  run-worker-local - Run worker optimized for local development"
 	@echo "  help         - Show this help message"
 
 setup:
@@ -19,9 +24,11 @@ setup:
 	@echo "4. Reserve a static domain at https://dashboard.ngrok.com/domains"
 	@echo "5. Update the NGROK_DOMAIN in your .env file with your reserved domain."
 
-run:
+expose:
 	@echo "Starting the Ollama ngrok tunnel..."
-	@source .env && ngrok http 11434 --domain $$NGROK_DOMAIN --traffic-policy-file ollama.yaml
+	@PORT=$${PORT:-8501}; \
+	echo "Exposing port $$PORT"; \
+	source .env && ngrok http $$PORT --domain $$NGROK_DOMAIN --traffic-policy-file ollama.yaml
 
 test-latency:
 	@if [ ! -f .env ]; then \
@@ -36,8 +43,28 @@ ui-install:
 
 ui-run:
 	@echo "Running the Streamlit UI..."
-	@streamlit run ui/app.py
+	@cd ui && source venv/bin/activate && streamlit run app.py
 
-ui-worker:
+ui-worker: run-temporal run-worker
+
+run-worker:
 	@echo "Running the Temporal worker in another terminal..."
-	@python ui/worker.py
+	@cd ui && source venv/bin/activate && python3 worker.py
+
+run-temporal:
+	@echo "Starting Temporal server with docker-compose..."
+	@if ! lsof -Pi :7233 -sTCP:LISTEN -t >/dev/null 2>&1; then \
+		echo "Temporal server not running, starting it..."; \
+		cd ui/docker-compose && docker-compose up -d; \
+		echo "Temporal server started with docker-compose"; \
+		echo "Waiting for services to be ready..."; \
+		sleep 10; \
+		echo "Temporal Web UI available at: http://localhost:8080"; \
+	else \
+		echo "Temporal server already running on port 7233"; \
+	fi
+
+stop-temporal:
+	@echo "Stopping Temporal server docker-compose services..."
+	@cd ui/docker-compose && docker-compose down
+	@echo "Temporal server stopped"

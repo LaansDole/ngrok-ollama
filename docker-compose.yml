@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  ui:
+    build:
+      context: ./ui
+    ports:
+      - "8501:8501"
+    environment:
+      - TEMPORAL_HOST=host.docker.internal
+      - DEFAULT_MODEL=llama2
+      - TEMPORAL_TASK_QUEUE=ollama-task-queue
+    networks:
+      - remote-ollama-net
+    command: streamlit run app.py
+
+  worker:
+    build:
+      context: ./ui
+    environment:
+      - TEMPORAL_HOST=host.docker.internal
+      - OLLAMA_API_URL=http://host.docker.internal:11434/api/chat
+      - TEMPORAL_TASK_QUEUE=ollama-task-queue
+      - DEFAULT_MODEL=llama2
+    networks:
+      - remote-ollama-net
+    command: python3 worker.py
+
+networks:
+  remote-ollama-net:
+    driver: bridge
