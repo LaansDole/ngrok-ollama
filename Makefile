@@ -1,16 +1,17 @@
-.PHONY: setup expose test-latency help ui-install ui-run ui-worker run-worker run-temporal stop-temporal ui-compose debug-worker run-worker-local
+.PHONY: setup expose test-latency help ui-install ui-run ui-worker run-worker run-temporal stop-temporal ui-compose debug-worker run-worker-local configure-streamlit
 
 help:
 	@echo "Available commands:"
 	@echo "  setup        - Display ngrok setup instructions"
-	@echo "  run          - Start the ngrok tunnel for Ollama (default port 11434)"
-	@echo "                 Usage: make run [PORT=<port>]"
+	@echo "  expose       - Start the ngrok tunnel (default port 8501)"
+	@echo "                 Usage: make expose [PORT=<port>]"
 	@echo "  test-latency - Test latency performance of the tunnel"
 	@echo "  ui-install   - Install UI dependencies"
 	@echo "  ui-run       - Run the Streamlit UI"
 	@echo "  ui-worker    - Run the Temporal worker"
 	@echo "  run-temporal - Start Temporal server with docker-compose"
 	@echo "  stop-temporal - Stop Temporal server docker-compose services"
+	@echo "  configure-streamlit - Configure Streamlit for ngrok access"
 	@echo "  debug-worker - Run the worker with debug output"
 	@echo "  run-worker-local - Run worker optimized for local development"
 	@echo "  help         - Show this help message"
@@ -68,3 +69,7 @@ stop-temporal:
 	@echo "Stopping Temporal server docker-compose services..."
 	@cd ui/docker-compose && docker-compose down
 	@echo "Temporal server stopped"
+
+configure-streamlit:
+	@echo "Configuring Streamlit for ngrok access..."
+	@cd ui && python3 configure_ngrok.py
