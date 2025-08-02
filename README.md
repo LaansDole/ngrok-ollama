@@ -88,68 +88,118 @@ This setup is based on the best practices found in the official `ngrok` document
     This setup uses a static domain for a consistent URL. Reserve a free static domain on the [ngrok domains page](https://dashboard.ngrok.com/domains).
 
 4.  **Configure Environment Variables:**
+
+    **For the main project (ngrok configuration):**
     *   Copy the example environment file: `cp .env.example .env`
     *   Edit the `.env` file and replace `YOUR_RESERVED_DOMAIN.ngrok.app` with the domain you reserved in the previous step.
 
+    **For the UI services:**
+    *   The UI has separate environment configuration in `ui/.env` and `ui/.env.example`
+    *   For local development, the default `ui/.env` should work out of the box
+    *   For Docker deployment, you can use the provided `ui/.env.example` as a template
+
+    **Key Environment Variables:**
+    ```bash
+    # Main project (.env)
+    NGROK_DOMAIN=your-reserved-domain.ngrok.app
+
+    # UI configuration (ui/.env)
+    DEFAULT_MODEL=deepseek-r1:671b        # Default LLM model
+    TEMPORAL_TASK_QUEUE=ollama-task-queue # Temporal task queue name
+    OLLAMA_API_URL=http://localhost:11434/api/chat  # Ollama API endpoint
+    TEMPORAL_HOST=localhost               # Temporal server host
+    TEMPORAL_PORT=7233                   # Temporal server port
+    ```
+
 ## Usage
+
+### Quick Start Commands
+
+The project includes a comprehensive Makefile with the following commands:
+
+```bash
+# Setup and configuration
+make setup          # Display ngrok setup instructions
+make help           # Show all available commands
+```
 
 ### Running with Docker Compose (Recommended)
 
-This method runs the Streamlit UI, Temporal worker, and Temporal server in Docker containers. **Note: You need to have Ollama running separately on your host machine.**
+This method runs the Streamlit UI, Temporal worker, and Temporal server in Docker containers.
 
 1.  **Start Ollama on your host machine:**
     ```bash
     OLLAMA_HOST=0.0.0.0 ollama serve
     ```
 
-2.  **Start the UI, Worker, and Temporal Server:**
+2.  **Start all services with Docker Compose:**
     ```bash
-    docker-compose -f docker-compose.ui.yml up --build
+    # Start Temporal server
+    make run-temporal
+    
+    # Start UI and worker services
+    docker-compose up --build
     ```
     
-    The UI will be available at `http://localhost:8501`.
+    The Streamlit UI will be available at `http://localhost:8501`.
+    The Temporal Web UI will be available at `http://localhost:8080`.
 
-### Running Manually
+3.  **Expose the Streamlit UI via ngrok (optional):**
+    ```bash
+    make expose  # Exposes port 8501 by default
+    ```
 
-If you prefer to run the services manually without Docker, you can follow these steps:
+### Running Manually (Local Development)
 
-1.  **Start your Ollama Server:**
-    For `ngrok` to access your Ollama instance, you must start it so that it listens on all network interfaces. Open a new terminal and run:
+For local development and testing:
+
+1.  **Start Ollama Server:**
     ```bash
     OLLAMA_HOST=0.0.0.0 ollama serve
     ```
 
-2.  **Start the ngrok Tunnel:**
-    In the project directory, simply run:
+2.  **Start Temporal Server:**
     ```bash
-    make run
+    make run-temporal
     ```
-    This command will read your `.env` file and start the `ngrok` tunnel using the traffic policy defined in `ollama.yaml`. You will see the public URL in your terminal.
 
-3.  **Set up and Run the Ollama Chat UI:**
-    You will need to run the Temporal worker and the Streamlit UI in separate terminals.
-
-    *   **Terminal 1: Install Dependencies**
-        ```bash
-        make ui-install
-        ```
-
-    *   **Terminal 2: Start the Temporal Worker**
-        ```bash
-        make ui-worker
-        ```
-
-    *   **Terminal 3: Start the Streamlit UI**
-        ```bash
-        make ui-run
-        ```
-
-    Now you can access the chat UI in your browser at the address provided by Streamlit (usually `http://localhost:8501`).
-
-    **Note:** For manual setup, you'll also need to run a Temporal server separately. You can use Docker for this:
+3.  **Install UI Dependencies:**
     ```bash
-    docker run --rm -p 7233:7233 temporalio/auto-setup:1.10.0
+    make ui-install
     ```
+
+4.  **Start the Temporal Worker (Terminal 1):**
+    ```bash
+    make run-worker
+    ```
+
+5.  **Start the Streamlit UI (Terminal 2):**
+    ```bash
+    make ui-run
+    ```
+
+6.  **Expose via ngrok (optional):**
+    ```bash
+    # Expose Ollama directly
+    make expose PORT=11434
+    
+    # Or expose the Streamlit UI
+    make expose PORT=8501
+    ```
+
+### Testing
+
+The project includes comprehensive tests in the `ui/test/` directory:
+
+```bash
+# Run individual tests
+python3 ui/test/test_connection.py
+python3 ui/test/test_worker.py
+python3 ui/test/test_streamlit_connection.py
+
+# Run all tests
+python3 ui/test/run_all_tests.py
+```
 
 ## Troubleshooting
 
@@ -163,12 +213,7 @@ Here are some common errors and their solutions:
 ### `Error reading configuration file 'ollama.yaml'`
 
 *   **Error Messages:** `version property is required` or `field traffic_policy not found in type config.v2yamlConfig`
-*   **Solution:** This indicates an issue with the traffic policy file or how it's being loaded. This project is pre-configured to handle this correctly, but ensure that the `run` command in the `Makefile` uses the `--traffic-policy-file` flag, not `--config`.
-
-### Ollama Server Not Accessible from Tunnel
-
-*   **Symptom:** The `ngrok` tunnel is running, but you get errors when trying to access your Ollama server through the public URL.
-*   **Solution:** Ensure you have started the Ollama server as described in step 1 of the **Usage** section, with the `OLLAMA_HOST` environment variable set to `0.0.0.0`.
+*   **Solution:** This indicates an issue with the traffic policy file or how it's being loaded. This project is pre-configured to handle this correctly, but ensure that the `expose` command in the `Makefile` uses the `--traffic-policy-file` flag, not `--config`.
 
 ## Performance Considerations
 
@@ -183,4 +228,5 @@ This project was built using information from the following resources:
 *   **ngrok Documentation:** [Expose and Secure Your Self-Hosted Ollama API](https://ngrok.com/docs/universal-gateway/examples/ollama/)
 *   **thoughtbot Blog:** [How to use ngrok and Ollama to access a local LLM remotely](https://thoughtbot.com/blog/ngrok-and-ollama)
 *   **Ollama on Homebrew:** [formulae.brew.sh/formula/ollama](https://formulae.brew.sh/formula/ollama)
+*   **Temporal Documentation:** [Official Temporal Docker Compose Setup](https://github.com/temporalio/docker-compose)
 *   **Performance Analysis:** [ngrok Latency Guide](docs/ngrok-latency-guide.md)

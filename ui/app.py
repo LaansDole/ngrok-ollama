@@ -4,9 +4,14 @@ import os
 from dotenv import load_dotenv
 from temporalio.client import Client
 from temporal_workflow import OllamaWorkflow
+from temporal_manager import temporal_manager
 
 # Load environment variables from .env file
-load_dotenv()
+# Check for local environment file first
+if os.path.exists('.env.local'):
+    load_dotenv('.env.local')
+else:
+    load_dotenv()
 
 # --- Constants ---
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "llama2")
@@ -28,11 +33,18 @@ if "messages" not in st.session_state:
 async def get_temporal_response(model: str, messages: list) -> str:
     """Connects to Temporal and runs the Ollama workflow."""
     try:
-        client = await Client.connect(f"{TEMPORAL_HOST}:7233")
+        client = await temporal_manager.get_client()
+        if not client:
+            return "Error: Could not connect to Temporal server. Please ensure the Temporal server is running."
+        
+        # Create a unique workflow ID to avoid conflicts
+        import uuid
+        workflow_id = f"ollama-workflow-{uuid.uuid4()}"
+            
         result = await client.execute_workflow(
             OllamaWorkflow.run,
             args=[model, messages],
-            id="ollama-workflow",
+            id=workflow_id,
             task_queue=TEMPORAL_TASK_QUEUE,
         )
         return result
