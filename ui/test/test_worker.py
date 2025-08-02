@@ -30,7 +30,6 @@ class WorkerTester:
                 return False
                 
             # Try to get cluster info
-            import temporalio.client
             import temporalio.api.workflowservice.v1 as ws
             cluster_info = await self.client.workflow_service.get_cluster_info(
                 ws.GetClusterInfoRequest()
