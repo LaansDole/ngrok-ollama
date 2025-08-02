@@ -16,8 +16,8 @@ async def main():
         try:
             logger.info("Testing Temporal connection...")
             # Try to get cluster info to verify connection
-            import temporalio.client
-            await client.workflow_service.get_cluster_info(temporalio.api.workflowservice.v1.GetClusterInfoRequest())
+            # Use the directly imported GetClusterInfoRequest
+            await client.workflow_service.get_cluster_info(GetClusterInfoRequest())
             logger.info("Temporal connection test successful")
         except Exception as conn_test_error:
             logger.warning(f"Connection test warning: {conn_test_error}")
