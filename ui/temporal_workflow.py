@@ -1,8 +1,8 @@
 
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import List
 import os
+from typing import List
 from dotenv import load_dotenv
 from temporalio import activity, workflow
 
