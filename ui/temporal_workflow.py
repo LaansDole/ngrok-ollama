@@ -19,9 +19,7 @@ class OllamaInput:
 @activity.defn
 async def get_ollama_response(input: OllamaInput) -> str:
     """Activity to get a response from the Ollama API."""
-    # Import requests inside the activity (not in the workflow sandbox)
-    import requests
-    import json
+    # Requests and json are imported at the module level for performance.
     
     full_response = ""
     try:
